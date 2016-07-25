@@ -58,6 +58,23 @@ SuperCluster.prototype = {
         return this;
     },
 
+    getChildPoints: function(cluster) {
+      if (cluster.id !== -1) {
+        return [this.points[cluster.id]];
+      } else {
+        if (cluster.children.length === 0) {
+          return [cluster]
+        }
+      }
+      var tree = this.trees[cluster.treeZoom + 1];
+      var result = []
+      for (var i = 0; i < cluster.children.length; i++) {
+        var childCluster = tree.points[cluster.children[i]];
+        result = result.concat(this.getChildPoints(childCluster));
+      }
+      return result;
+    },
+
     getClusters: function (bbox, zoom) {
         var tree = this.trees[this._limitZoom(zoom)];
         var ids = tree.range(lngX(bbox[0]), latY(bbox[3]), lngX(bbox[2]), latY(bbox[1]));
@@ -138,6 +155,7 @@ SuperCluster.prototype = {
             var wx = p.x * numPoints;
             var wy = p.y * numPoints;
 
+            var childIds = [i];
             for (var j = 0; j < neighborIds.length; j++) {
                 var b = tree.points[neighborIds[j]];
                 // filter out neighbors that are too far or already processed
@@ -147,29 +165,32 @@ SuperCluster.prototype = {
                     wx += b.x * b.numPoints; // accumulate coordinates for calculating weighted center
                     wy += b.y * b.numPoints;
                     numPoints += b.numPoints;
+                    childIds.push(neighborIds[j]);
                 }
             }
 
-            clusters.push(foundNeighbors ? createCluster(wx / numPoints, wy / numPoints, numPoints, -1) : p);
+            clusters.push(foundNeighbors ? createCluster(wx / numPoints, wy / numPoints, numPoints, -1, childIds, zoom) : p);
         }
 
         return clusters;
     }
 };
 
-function createCluster(x, y, numPoints, id) {
+function createCluster(x, y, numPoints, id, children, treeZoom) {
     return {
         x: x, // weighted cluster center
         y: y,
         zoom: Infinity, // the last zoom the cluster was processed at
         id: id, // index of the source feature in the original input array
-        numPoints: numPoints
+        numPoints: numPoints,
+        children: children,
+        treeZoom: treeZoom
     };
 }
 
 function createPointCluster(p, i) {
     var coords = p.geometry.coordinates;
-    return createCluster(lngX(coords[0]), latY(coords[1]), 1, i);
+    return createCluster(lngX(coords[0]), latY(coords[1]), 1, i, [], null);
 }
 
 function getClusterJSON(cluster) {
@@ -190,7 +211,8 @@ function getClusterProperties(cluster) {
     return {
         cluster: true,
         point_count: count,
-        point_count_abbreviated: abbrev
+        point_count_abbreviated: abbrev,
+        original: cluster
     };
 }
 

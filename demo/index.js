@@ -9,11 +9,22 @@ L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 var markers = L.geoJson(null, {
-    pointToLayer: createClusterIcon
+    pointToLayer: createClusterIcon,
+    onEachFeature: handleFeature
 }).addTo(map);
 
 var worker = new Worker('worker.js');
 var ready = false;
+
+function handleFeature(data, layer) {
+  layer.on('click', function() {
+    worker.postMessage({
+      click: true,
+      clickData: data
+    });
+  });
+  layer.bindPopup(JSON.stringify(data));
+}
 
 worker.onmessage = function (e) {
     if (e.data.ready) {

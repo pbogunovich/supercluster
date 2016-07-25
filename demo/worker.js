@@ -9,7 +9,8 @@ var now = Date.now();
 
 var index;
 
-getJSON('../test/fixtures/places.json', function (geojson) {
+//getJSON('../test/fixtures/places.json', function (geojson) {
+getJSON('./collect.geojson', function (geojson) {
     console.log('loaded ' + geojson.length + ' points JSON in ' + ((Date.now() - now) / 1000) + 's');
 
     index = supercluster({
@@ -26,7 +27,12 @@ getJSON('../test/fixtures/places.json', function (geojson) {
 
 self.onmessage = function (e) {
     if (e.data) {
+      if (e.data.click) {
+        var children = index.getChildPoints(e.data.clickData.properties.original);
+        console.log("Found " + children.length + " total child points");
+      } else {
         postMessage(index.getClusters(e.data.bbox, e.data.zoom));
+      }
     }
 };
 
